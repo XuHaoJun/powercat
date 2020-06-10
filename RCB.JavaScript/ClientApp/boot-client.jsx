@@ -4,10 +4,10 @@ import "custom-event-polyfill";
 import "event-source-polyfill";
 
 // Import global styles.
-import "bootstrap/dist/css/bootstrap.min.css";
-import "@Styles/main.scss";
-import "@Styles/loaders/queryLoader.scss";
-import "react-toastify/dist/ReactToastify.css";
+// import "bootstrap/dist/css/bootstrap.min.css";
+// import "@Styles/main.scss";
+// import "@Styles/loaders/queryLoader.scss";
+// import "react-toastify/dist/ReactToastify.css";
 
 // Other imports.
 import * as React from "react";

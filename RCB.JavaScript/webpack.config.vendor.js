@@ -51,7 +51,7 @@ module.exports = (env) => {
                 'domain-wait',
                 'react-paginating',
                 'axios',
-                'bootstrap/dist/css/bootstrap.min.css',
+                // 'bootstrap/dist/css/bootstrap.min.css',
                 './ClientApp/styles/loaders/applicationLoader.css',
                 'react-toastify/dist/ReactToastify.css',
                 'react-toastify',

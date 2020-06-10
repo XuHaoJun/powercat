@@ -1,4 +1,8 @@
-﻿import { toast } from "react-toastify";
+﻿// import { toast } from "react-toastify";
+const toast = {
+    error: () => {},
+    info: () => {},
+}
 
 /**
  * Is server prerendering by NodeJs.

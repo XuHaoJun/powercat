@@ -8,13 +8,13 @@ const AppRoute =
 
         var isLoginPath = Path === "/login";
 
-        if (!SessionManager.isAuthenticated && !isLoginPath) {
-            return <Redirect to="/login" />;
-        }
+        // if (!SessionManager.isAuthenticated && !isLoginPath) {
+        //     return <Redirect to="/login" />;
+        // }
 
-        if (SessionManager.isAuthenticated && isLoginPath) {
-            return <Redirect to="/" />;
-        }
+        // if (SessionManager.isAuthenticated && isLoginPath) {
+        //     return <Redirect to="/" />;
+        // }
 
         if (statusCode == null) {
             responseContext.statusCode = 200;

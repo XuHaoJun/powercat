@@ -61,14 +61,44 @@ export class ServiceBase {
                     axiosResult = await Axios.delete(processQuery(opts.url, opts.data), axiosRequestConfig);
                     break;
             }
-            result = new Result(axiosResult.data.value, ...axiosResult.data.errors);
+            const getValue = () => {
+                if ((axiosResult.data !== undefined || axiosResult.data !== null)  && 
+                    axiosResult.data.value !== undefined) {
+                    return axiosResult.data.value;
+                } else {
+                    return axiosResult.data;
+                }
+                return null;
+            };
+            const value = getValue();
+            const errors = (() => {
+                if (axiosResult.data.errors) {
+                    return axiosResult.data.errors;
+                } else if (axiosResult.data.error) {
+                    return [axiosResult.data.error];
+                } else {
+                    return [];
+                }
+                return [];
+            })();
+            console.log('axiosResult', value, errors);
+            result = new Result(value, ...errors);
         } catch (error) {
-            result = new Result(null, error.message);
+            if (error.response) {
+                if (error.response.status >= 400 && error.response.status <= 500) {
+                    result = new Result(null, error.message);
+                }
+            } else {
+                throw error;
+            }
         }
 
-        if (result.hasErrors) {
-            showErrors(...result.errors);
-        }
+
+        // TODO
+        // Add ErrorLog Store and component, don't directly inject toast to body for show error.
+        // if (result.hasErrors) {
+        //     showErrors(...result.errors);
+        // }
 
         return result;
     }
