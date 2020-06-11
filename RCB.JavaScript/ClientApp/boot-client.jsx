@@ -16,6 +16,8 @@ import configureStore from "@Store/configureStore";
 import SessionManager from "@Core/session";
 import { AppContainer } from "react-hot-loader";
 import { Provider } from "react-redux";
+import { ThemeProvider } from "@material-ui/core/styles";
+import theme from "./styles/theme";
 import { ConnectedRouter } from "connected-react-router";
 import { createBrowserHistory } from "history";
 import { isNode, showApplicationLoader, hideApplicationLoader } from "@Utils";
@@ -23,34 +25,33 @@ import * as RoutesModule from "./routes";
 let routes = RoutesModule.routes;
 
 function setupSession() {
-    if (!isNode()) {
-        SessionManager.resetSession();
-        SessionManager.initSession({
-            isomorphic: window["session"],
-            ssr: {}
-        });
-    }
-};
+  if (!isNode()) {
+    SessionManager.resetSession();
+    SessionManager.initSession({
+      isomorphic: window["session"],
+      ssr: {},
+    });
+  }
+}
 
 function setupGlobalPlugins() {
-    // Use this function to configure plugins on the client side.
-};
+  // Use this function to configure plugins on the client side.
+}
 
 function setupEvents() {
+  showApplicationLoader();
 
-    showApplicationLoader();
-
-    document.addEventListener("DOMContentLoaded", () => {
-        hideApplicationLoader();
-    });
-};
+  document.addEventListener("DOMContentLoaded", () => {
+    hideApplicationLoader();
+  });
+}
 
 function getBaseUrl() {
-    var elements = document.getElementsByTagName('base');
-    if (elements.length === 0) {
-        return null;
-    }
-    return elements[0].getAttribute('href');
+  var elements = document.getElementsByTagName("base");
+  if (elements.length === 0) {
+    return null;
+  }
+  return elements[0].getAttribute("href");
 }
 
 // Create browser history to use in the Redux store.
@@ -61,17 +62,30 @@ const history = createBrowserHistory({ basename: baseUrl });
 const initialState = window.initialReduxState;
 const store = configureStore(history, initialState);
 
+function Main() {
+  // https://material-ui.com/guides/server-rendering/
+  React.useEffect(() => {
+    const jssStyles = document.querySelector("#jss-server-side");
+    if (jssStyles) {
+      jssStyles.parentElement.removeChild(jssStyles);
+    }
+  }, []);
+  return (
+    <ThemeProvider theme={theme}>
+      <AppContainer>
+        <Provider store={store}>
+          <ConnectedRouter history={history} children={routes} />
+        </Provider>
+      </AppContainer>
+    </ThemeProvider>
+  );
+}
+
 function renderApp() {
-    // This code starts up the React app when it runs in a browser. 
-    // It sets up the routing configuration and injects the app into a DOM element.
-    ReactDOM.hydrate(
-        <AppContainer>
-            <Provider store={ store }>
-                <ConnectedRouter history={ history } children={ routes } />
-            </Provider>
-        </AppContainer>,
-        document.getElementById("react-app")
-    );
+  const renderMethod = module.hot ? ReactDOM.render : ReactDOM.hydrate;
+  // This code starts up the React app when it runs in a browser.
+  // It sets up the routing configuration and injects the app into a DOM element.
+  renderMethod(<Main />, document.getElementById("react-app"));
 }
 
 // Setup the application and render it.
@@ -82,8 +96,8 @@ renderApp();
 
 // Allow Hot Module Replacement.
 if (module.hot) {
-    module.hot.accept("./routes", () => {
-        routes = require("./routes").routes;
-        renderApp();
-    });
+  module.hot.accept("./routes", () => {
+    routes = require("./routes").routes;
+    renderApp();
+  });
 }
