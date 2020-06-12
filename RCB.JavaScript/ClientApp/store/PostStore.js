@@ -128,6 +128,17 @@ export const actionCreators = {
 
     return result;
   },
+  getById: (postId) => async (dispatch) => {
+    dispatch(slice.actions.setFetching(true));
+    const service = new PostService();
+
+    const result = await service.getById(postId);
+
+    if (!result.hasErrors) {
+      dispatch(slice.actions.addData(result.value));
+    }
+    dispatch(slice.actions.setFetching(false));
+  },
   getByPage: (page = 1) => async (dispatch) => {
     dispatch(slice.actions.setFetching(true));
 
@@ -174,18 +185,20 @@ export const actionCreators = {
 
     return result;
   },
-  delete: (id) => async (dispatch) => {
+  delete: (form) => async (dispatch) => {
     dispatch(slice.actions.setFetching(true));
 
     const service = new PostService();
 
-    const result = await service.delete(id);
-
-    if (!result.hasErrors) {
-      dispatch(slice.actions.deleteData({ id }));
-    }
+    const result = await service.delete(form);
 
     dispatch(slice.actions.setFetching(false));
+
+    // TODO
+    // update post
+    // if (!result.hasErrors) {
+    //   dispatch();
+    // }
 
     return result;
   },

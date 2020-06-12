@@ -17,12 +17,6 @@ const MainLayout = (props) => {
   const classes = useStyles();
   return (
     <React.Fragment>
-      <Helmet>
-        <meta
-          name="viewport"
-          content="minimum-scale=1, initial-scale=1, width=device-width"
-        />
-      </Helmet>
       <CssBaseline classes={classes} />
       <div>
         <Container disableGutters>

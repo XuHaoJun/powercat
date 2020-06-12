@@ -61,6 +61,9 @@ namespace RCB.JavaScript.Models
       modelBuilder.Entity<Post>()
           .Property(p => p.UpdatedAt)
           .HasDefaultValueSql("now()");
+
+      modelBuilder.Entity<Post>()
+          .HasIndex(p => new { p.PostId, p.ParentPostId });
     }
   }
 }

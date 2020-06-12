@@ -12,6 +12,14 @@ export default class PostService extends ServiceBase {
     return result;
   }
 
+  async getById(id) {
+    var result = await this.requestJson({
+      url: `/api/posts/${id}`,
+      method: "GET",
+    });
+    return result;
+  }
+
   async getByPage(page = 1) {
     var result = await this.requestJson({
       url: `/api/posts?page=${page}`,
@@ -29,10 +37,13 @@ export default class PostService extends ServiceBase {
     return result;
   }
 
-  async delete(id) {
+  async delete(form) {
+    const { postId } = form;
+    console.log('form', form)
     var result = await this.requestJson({
-      url: `/api/Person/${id}`,
+      url: `/api/posts/${postId}`,
       method: "DELETE",
+      data: { accessToken: form.accessToken },
     });
     return result;
   }

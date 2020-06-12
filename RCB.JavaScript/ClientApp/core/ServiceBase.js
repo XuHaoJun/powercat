@@ -58,7 +58,8 @@ export class ServiceBase {
                     axiosResult = await Axios.patch(opts.url, opts.data, axiosRequestConfig);
                     break;
                 case "DELETE":
-                    axiosResult = await Axios.delete(processQuery(opts.url, opts.data), axiosRequestConfig);
+                    // axiosResult = await Axios.delete(processQuery(opts.url, opts.data), axiosRequestConfig);
+                    axiosResult = await Axios.delete(opts.url, {...axiosRequestConfig, data: opts.data});
                     break;
             }
             const getValue = () => {
@@ -81,7 +82,6 @@ export class ServiceBase {
                 }
                 return [];
             })();
-            console.log('axiosResult', value, errors);
             result = new Result(value, ...errors);
         } catch (error) {
             if (error.response) {

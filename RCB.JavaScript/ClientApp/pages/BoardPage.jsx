@@ -15,10 +15,19 @@ import Tab from "@material-ui/core/Tab";
 import PostTree from "@Components/post/PostTree";
 import PostEditor from "@Components/post/PostEditor";
 
-const PostVariantTabs = () => {
+const PostVariantTabs = ({ onChange }) => {
   const [value, setValue] = React.useState(0);
+  const indexVariantMapping = {
+    0: "post",
+    1: "image/video",
+    2: "link",
+    3: "poll",
+  };
   const handleChange = (event, newValue) => {
     setValue(newValue);
+    if (onChange) {
+      onChange(event, indexVariantMapping[newValue]);
+    }
   };
   return (
     <Tabs
@@ -82,6 +91,8 @@ function contentHasMinText(nodes, targetCount, _count = 0) {
     var nextCount = _count;
     for (i = 0; i < nodes.length; i++) {
       const node = nodes[i];
+      console.log("node", node);
+      console.log("node.text", node.text);
       if (isString(node.text)) {
         nextCount += node.text.length;
         if (nextCount >= targetCount) {
@@ -89,7 +100,7 @@ function contentHasMinText(nodes, targetCount, _count = 0) {
         }
       }
       if (isArray(node.children)) {
-        children = [...node.children, children];
+        children = [...children, ...node.children];
       }
     }
     if (children.length > 0) {
@@ -100,21 +111,52 @@ function contentHasMinText(nodes, targetCount, _count = 0) {
   }
 }
 
-import Grid from '@material-ui/core/Grid';
+import Grid from "@material-ui/core/Grid";
+
+const LinkForm = () => {
+  const [formData, setFormData] = React.useState({});
+  return (
+    <Grid container spacing={3} alignItems="center">
+      <Grid xs={12}>
+        <TextField
+          required
+          fullWidth
+          id="post-title-form"
+          label="Title"
+          variant="outlined"
+        />
+      </Grid>
+      <Grid xs={12}>
+        <TextField
+          required
+          fullWidth
+          id="post-title-form"
+          label="Url"
+          rows={4}
+          variant="outlined"
+        />
+      </Grid>
+    </Grid>
+  );
+};
 
 const PostForm = ({ onSubmit, onCancel, disabled = false }) => {
+  const [formData, setFormData] = React.useState({});
   const [title, setTitle] = React.useState("");
   const [titleFirstFocusing, setTitleFirstFocusing] = React.useState(false);
   const handleTitleChange = (event) => {
-    setTitle(event.target.value);
+    setTitle(event.target.value.trim());
   };
   const [content, setContent] = React.useState([]);
   const [error, setError] = React.useState(null);
   const handleContentChange = (nextContent) => {
     setContent(nextContent);
   };
-  const newPost = { title, content };
-  const titleError = "Title require more than 5 char.";
+  const getNewPost = () => {
+    return { title, content, ...formData };
+  };
+  const newPost = getNewPost();
+  const titleError = "Require more than 5 char.";
   const contentError = "Content require more than 5 char.";
   const hasErrors = (err) => {
     return err == titleError || err == contentError;
@@ -160,6 +202,7 @@ const PostForm = ({ onSubmit, onCancel, disabled = false }) => {
   }
   const handleSubmit = (event) => {
     event.preventDefault();
+    const newPost = getNewPost();
     var valResult = validate(newPost);
     setTitleFirstFocusing(true);
     if (!hasErrors(valResult)) {
@@ -170,20 +213,49 @@ const PostForm = ({ onSubmit, onCancel, disabled = false }) => {
   };
   const handleCancel = (event) => {
     if (onCancel) {
+      const newPost = getNewPost();
       onCancel(event, newPost);
     }
   };
+  const handleFormChange = (prop) => (event) => {
+    setFormData({ ...formData, [prop]: event.target.value.trim() });
+  };
   return (
     <Paper elevation={0} style={{ minHeight: 30, padding: 10 }}>
-        <div style={{ marginBottom: 30 }}>
+      <Grid container spacing={3} alignItems="center">
+        <Grid item xs={12}>
           <PostVariantTabs />
-        </div>
-        <div style={{ marginBottom: 30 }}>
-          <TextField label="Name" variant="outlined" />
-          <TextField label="Email" variant="outlined" />
-          <TextField label="AccessToken" variant="outlined" />
-        </div>
-        <div style={{ marginBottom: 30 }}>
+        </Grid>
+        <Grid item xs={12} md={4}>
+          <TextField
+            fullWidth
+            label="Name"
+            variant="outlined"
+            value={formData.authorName}
+            onChange={handleFormChange("authorName")}
+          />
+        </Grid>
+        <Grid item xs={12} md={4}>
+          <TextField
+            fullWidth
+            label="Email"
+            variant="outlined"
+            value={formData.email}
+            onChange={handleFormChange("email")}
+          />
+        </Grid>
+        <Grid item xs={12} md={4}>
+          <TextField
+            fullWidth
+            label="AccessToken"
+            variant="outlined"
+            size="small"
+            helperText="編輯或刪除用。英數8字元以內"
+            value={formData.accessToken}
+            onChange={handleFormChange("accessToken")}
+          />
+        </Grid>
+        <Grid item xs={12}>
           <TextField
             onFocus={() => {
               setTitleFirstFocusing(true);
@@ -203,39 +275,43 @@ const PostForm = ({ onSubmit, onCancel, disabled = false }) => {
             value={title}
             onChange={handleTitleChange}
           />
-        </div>
-        <div
-          style={{
-            border: "1px solid #C4C4C4",
-            padding: 5,
-            marginBottom: 30,
-          }}
-        >
-          <PostEditor
-            data={content}
-            onChange={handleContentChange}
-            editableProps={{ style: { minHeight: 160 } }}
-          />
-        </div>
-        <div>
-          <Button onClick={handleCancel} disabled={disabled}>
-            取消
-          </Button>
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={handleSubmit}
-            disabled={disabled}
-            type="submit"
+        </Grid>
+        <Grid item xs={12}>
+          <div
+            style={{
+              border: "1px solid #C4C4C4",
+              padding: 5,
+              marginBottom: 30,
+            }}
           >
-            送出
-          </Button>
-        </div>
+            <PostEditor
+              data={content}
+              onChange={handleContentChange}
+              editableProps={{ style: { minHeight: 160 } }}
+            />
+          </div>
+        </Grid>
+      </Grid>
+      <div>
+        <Button onClick={handleCancel} disabled={disabled}>
+          取消
+        </Button>
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={handleSubmit}
+          disabled={disabled}
+          type="submit"
+        >
+          送出
+        </Button>
+      </div>
     </Paper>
   );
 };
 
-import Fab from "@material-ui/core/Fab";
+import DepthControlButtons from "@Components/post/DepthControlButtons";
+import LoadMoreButton from "@Components/shared/LoadMoreButton";
 
 class BoardPage extends React.Component {
   constructor(props) {
@@ -244,6 +320,7 @@ class BoardPage extends React.Component {
       page: 1,
       postFormVariant: null,
       isFething: false,
+      maxDepth: Infinity,
     };
     wait(async () => {
       await props.getByPage(1);
@@ -272,7 +349,11 @@ class BoardPage extends React.Component {
     const postForest = map(props.collection, (tree) => {
       return (
         <div key={`PostForest-${tree.postId}`} style={{ marginBottom: 20 }}>
-          <PostTree data={tree} onNodeSubmit={this.handleSubmit} />
+          <PostTree
+            data={tree}
+            onNodeSubmit={this.handleSubmit}
+            maxDepth={this.state.maxDepth}
+          />
         </div>
       );
     });
@@ -280,10 +361,6 @@ class BoardPage extends React.Component {
       <React.Fragment>
         <Helmet>
           <title>PowerCat</title>
-          <link
-            rel="stylesheet"
-            href="https://fonts.googleapis.com/icon?family=Material+Icons"
-          />
         </Helmet>
 
         <div>
@@ -310,6 +387,29 @@ class BoardPage extends React.Component {
           </div>
 
           <div style={{ marginBottom: 20 }}>{postForest}</div>
+          <div style={{ marginBottom: 20 }}>
+            <Paper>
+              <LoadMoreButton
+                fullWidth
+                onRequireLoadMore={async () => {
+                  const nextPage = this.state.page + 1;
+                  await this.props.getByPage(nextPage);
+                  this.setState({ page: nextPage });
+                }}
+              />
+            </Paper>
+          </div>
+          <div style={{ position: "fixed", bottom: "30vh", marginLeft: -150 }}>
+            <DepthControlButtons
+              onRequireDepthLimit={(maxDepth) => {
+                this.setState({ maxDepth: maxDepth });
+              }}
+              onRequireRefresh={() => {
+                this.setState({ page: 1 });
+                this.props.getByPage(1);
+              }}
+            />
+          </div>
         </div>
       </React.Fragment>
     );

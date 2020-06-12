@@ -13,24 +13,29 @@ import MoreIcon from "@material-ui/icons/MoreVert";
 import seedrandom from "seedrandom";
 import moment from "moment";
 import { isNumber, isObject, isFunction } from "lodash";
+import { connect } from "react-redux";
+import * as PostStore from "@Store/PostStore";
 
 import Menu from "@material-ui/core/Menu";
 import MenuItem from "@material-ui/core/MenuItem";
 
 import PostEditor from "@Components/post/PostEditor";
+import DeletePostDialog from "@Components/post/DeletePostDialog";
 import { isNode } from "@Utils";
 
-const MoreMenu = () => {
+const MoreMenuOri = (props) => {
   const [anchorEl, setAnchorEl] = React.useState(null);
-
+  const [openDeleteDialog, setOpenDeleteDialog] = React.useState(false);
+  var accessToken = "";
   const handleClick = (event) => {
     setAnchorEl(event.currentTarget);
   };
-
-  const handleClose = () => {
+  const handleClose = (actionName) => (event) => {
     setAnchorEl(null);
+    if (actionName == "delete") {
+      setOpenDeleteDialog(true);
+    }
   };
-
   return (
     <div>
       <IconButton
@@ -46,16 +51,44 @@ const MoreMenu = () => {
         anchorEl={anchorEl}
         keepMounted
         open={Boolean(anchorEl)}
-        onClose={handleClose}
+        onClose={handleClose("menu-close")}
       >
-        <MenuItem onClick={handleClose}>儲存</MenuItem>
-        <MenuItem onClick={handleClose}>編輯</MenuItem>
-        <MenuItem onClick={handleClose}>刪除</MenuItem>
-        <MenuItem onClick={handleClose}>檢舉</MenuItem>
+        <MenuItem onClick={handleClose("save")}>儲存(未完成)</MenuItem>
+        <MenuItem onClick={handleClose("edit")}>編輯(未完成)</MenuItem>
+        <MenuItem onClick={handleClose("delete")}>刪除</MenuItem>
+        <MenuItem onClick={handleClose("report")}>檢舉(未完成)</MenuItem>
       </Menu>
+      <DeletePostDialog
+        open={openDeleteDialog}
+        accessTokenTextFieldProps={{
+          onChange: (event) => {
+            accessToken = event.target.value;
+          },
+        }}
+        onClose={async (event, reason) => {
+          if (reason == "delete") {
+            if (props.deletePost) {
+              await props.deletePost({
+                postId: props.data.postId,
+                accessToken,
+              });
+            }
+          }
+          setOpenDeleteDialog(false);
+        }}
+      />
     </div>
   );
 };
+
+const MoreMenu = connect(
+  () => {
+    return {};
+  },
+  {
+    deletePost: PostStore.actionCreators.delete,
+  }
+)(MoreMenuOri);
 
 const Subheader = ({ data }) => {
   const [isFirstRender, setIsFirstRender] = React.useState(true);
@@ -134,7 +167,7 @@ function getDepthColor(depth = 0) {
 }
 
 const PostNode = (props) => {
-  const { onCancel, onNodeSubmit } = props;
+  const { onCancel, onNodeSubmit, maxDepth = Infinity } = props;
   const [isOpening, setIsOpening] = React.useState(false);
   const [
     disableEditorActionButton,
@@ -142,8 +175,7 @@ const PostNode = (props) => {
   ] = React.useState(false);
   const data = props.data || {};
   const depth = props.depth || 0;
-  const limitDepth = -1;
-  if (isNumber(limitDepth) && limitDepth > 0 && depth > limitDepth) {
+  if (isNumber(maxDepth) && depth > maxDepth) {
     return null;
   }
   const subheader = <Subheader data={data} />;
@@ -154,6 +186,7 @@ const PostNode = (props) => {
         key={`PostNode-${p.postId}`}
         data={p}
         depth={depth + 1}
+        maxDepth={maxDepth}
         onNodeSubmit={onNodeSubmit}
       />
     );
@@ -197,7 +230,11 @@ const PostNode = (props) => {
       <Card elevation={0} square style={borderStyle}>
         <CardHeader title={title} subheader={subheader} />
         <CardContent>
-          <PostEditor readOnly initData={data.content || []} />
+          {data.isDeleted ? (
+            <del style={{ color: "red" }}>Content deleted</del>
+          ) : (
+            <PostEditor readOnly initData={data.content || []} />
+          )}
         </CardContent>
         {isOpening ? (
           <CardContent
@@ -235,7 +272,7 @@ const PostNode = (props) => {
           ) : (
             <Button size="small">Share</Button>
           )}
-          {isOpening ? null : <MoreMenu />}
+          {isOpening ? null : <MoreMenu data={data} />}
         </CardActions>
       </Card>
       {childrenNode.length > 0 ? (
@@ -256,7 +293,7 @@ function getRandomColor(id = 0) {
 }
 
 const PostTree = (props) => {
-  const { data, onNodeSubmit } = props;
+  const { data, onNodeSubmit, maxDepth } = props;
   const borderLeft = `2px ${getRandomColor(data.postId)} solid`;
   return (
     <ul
@@ -267,7 +304,7 @@ const PostTree = (props) => {
         borderLeft: borderLeft,
       }}
     >
-      <PostNode data={data} onNodeSubmit={onNodeSubmit} />
+      <PostNode data={data} onNodeSubmit={onNodeSubmit} maxDepth={maxDepth} />
     </ul>
   );
 };

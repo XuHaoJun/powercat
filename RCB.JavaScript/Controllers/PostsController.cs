@@ -143,34 +143,34 @@ namespace RCB.JavaScript.Controllers
     }
 
     // PUT: api/posts/5
-    [HttpPut("{id}")]
-    public async Task<IActionResult> PutTodoItem(long id, Post post)
-    {
-      if (id != post.PostId)
-      {
-        return BadRequest();
-      }
+    // [HttpPut("{id}")]
+    // public async Task<IActionResult> PutTodoItem(long id, Post post)
+    // {
+    //   if (id != post.PostId)
+    //   {
+    //     return BadRequest();
+    //   }
 
-      _context.Entry(post).State = EntityState.Modified;
+    //   _context.Entry(post).State = EntityState.Modified;
 
-      try
-      {
-        await _context.SaveChangesAsync();
-      }
-      catch (DbUpdateConcurrencyException)
-      {
-        if (!PostExists(id))
-        {
-          return NotFound();
-        }
-        else
-        {
-          throw;
-        }
-      }
+    //   try
+    //   {
+    //     await _context.SaveChangesAsync();
+    //   }
+    //   catch (DbUpdateConcurrencyException)
+    //   {
+    //     if (!PostExists(id))
+    //     {
+    //       return NotFound();
+    //     }
+    //     else
+    //     {
+    //       throw;
+    //     }
+    //   }
 
-      return NoContent();
-    }
+    //   return NoContent();
+    // }
 
     public class PostForm
     {

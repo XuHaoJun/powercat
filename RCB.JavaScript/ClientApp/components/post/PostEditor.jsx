@@ -1,13 +1,31 @@
 import React, { useCallback, useMemo, useState } from "react";
+import { jsx } from "slate-hyperscript";
 import isHotkey from "is-hotkey";
-import { Editable, withReact, useSlate, Slate } from "slate-react";
-import { Editor, Transforms, createEditor } from "slate";
+import isUrl from "is-url";
+import {
+  Slate,
+  Editable,
+  withReact,
+  useSlate,
+  useEditor,
+  useSelected,
+  useFocused,
+} from "slate-react";
+import {
+  Transforms,
+  Editor,
+  Range,
+  Node,
+  Element as SlateElement,
+  createEditor,
+} from "slate";
 import { withHistory } from "slate-history";
-import { isArray } from "lodash";
+import { isArray, isElement, has } from "lodash";
 import { makeStyles } from "@material-ui/core/styles";
+import imageExtensions from "image-extensions";
+import { css } from "emotion";
 
 import { Button, Icon, Toolbar } from "./PostEditorComponents";
-import BoldIcon from "@material-ui/icons/FormatBold";
 
 const HOTKEYS = {
   "mod+b": "bold",
@@ -18,25 +36,185 @@ const HOTKEYS = {
 
 const LIST_TYPES = ["numbered-list", "bulleted-list"];
 
-const DEFAULT_VALUE = [{ type: "paragraph", children: [{ text: "" }] }];
+const EMPTY_PARAGRAPH = [{ type: "paragraph", children: [{ text: "" }] }];
+
+const DEFAULT_VALUE = EMPTY_PARAGRAPH;
 
 function isEmptyContent(v) {
   return !isArray(v) || (isArray(v) && v.length == 0);
 }
 
-const Placeholder = () => {
+const ELEMENT_TAGS = {
+  A: (el) => ({ type: "link", url: el.getAttribute("href") }),
+  BLOCKQUOTE: () => ({ type: "quote" }),
+  H1: () => ({ type: "heading-one" }),
+  H2: () => ({ type: "heading-two" }),
+  IMG: (el) => ({ type: "image", url: el.getAttribute("src") }),
+  LI: () => ({ type: "list-item" }),
+  OL: () => ({ type: "numbered-list" }),
+  P: () => ({ type: "paragraph" }),
+  PRE: () => ({ type: "code" }),
+  UL: () => ({ type: "bulleted-list" }),
+};
+
+// COMPAT: `B` is omitted here because Google Docs uses `<b>` in weird ways.
+const TEXT_TAGS = {
+  CODE: () => ({ code: true }),
+  DEL: () => ({ strikethrough: true }),
+  EM: () => ({ italic: true }),
+  I: () => ({ italic: true }),
+  S: () => ({ strikethrough: true }),
+  STRONG: () => ({ bold: true }),
+  U: () => ({ underline: true }),
+};
+
+export const deserialize = (el) => {
+  if (el.nodeType === 3) {
+    return el.textContent;
+  } else if (el.nodeType !== 1) {
+    return null;
+  } else if (el.nodeName === "BR") {
+    return "\n";
+  }
+
+  const { nodeName } = el;
+  let parent = el;
+
+  if (
+    nodeName === "PRE" &&
+    el.childNodes[0] &&
+    el.childNodes[0].nodeName === "CODE"
+  ) {
+    parent = el.childNodes[0];
+  }
+  const children = Array.from(parent.childNodes).map(deserialize).flat();
+
+  if (el.nodeName === "BODY") {
+    return jsx("fragment", {}, children);
+  }
+
+  if (ELEMENT_TAGS[nodeName]) {
+    const attrs = ELEMENT_TAGS[nodeName](el);
+    return jsx("element", attrs, children);
+  }
+
+  if (TEXT_TAGS[nodeName]) {
+    const attrs = TEXT_TAGS[nodeName](el);
+    return children.map((child) => jsx("text", attrs, child));
+  }
+
+  return children;
+};
+
+const withHtml = (editor) => {
+  const { insertData, isInline, isVoid } = editor;
+
+  editor.isInline = (element) => {
+    return element.type === "link" ? true : isInline(element);
+  };
+
+  editor.isVoid = (element) => {
+    return element.type === "image" ? true : isVoid(element);
+  };
+
+  editor.insertData = (data) => {
+    const html = data.getData("text/html");
+
+    if (html) {
+      const parsed = new DOMParser().parseFromString(html, "text/html");
+      const fragment = deserialize(parsed.body);
+      Transforms.insertFragment(editor, fragment);
+      return;
+    }
+
+    insertData(data);
+  };
+
+  return editor;
+};
+
+const withLinks = (editor) => {
+  const { insertData, insertText, isInline } = editor;
+
+  editor.isInline = (element) => {
+    return element.type === "link" ? true : isInline(element);
+  };
+
+  editor.insertText = (text) => {
+    if (text && isUrl(text)) {
+      wrapLink(editor, text);
+    } else {
+      insertText(text);
+    }
+  };
+
+  editor.insertData = (data) => {
+    const text = data.getData("text/plain");
+
+    if (text && isUrl(text)) {
+      wrapLink(editor, text);
+    } else {
+      insertData(data);
+    }
+  };
+
+  return editor;
+};
+
+const insertLink = (editor, url) => {
+  if (editor.selection) {
+    wrapLink(editor, url);
+  }
+};
+
+const isLinkActive = (editor) => {
+  const [link] = Editor.nodes(editor, { match: (n) => n.type === "link" });
+  return !!link;
+};
+
+const unwrapLink = (editor) => {
+  Transforms.unwrapNodes(editor, { match: (n) => n.type === "link" });
+};
+
+const wrapLink = (editor, url) => {
+  if (isLinkActive(editor)) {
+    unwrapLink(editor);
+  }
+
+  const { selection } = editor;
+  const isCollapsed = selection && Range.isCollapsed(selection);
+  const link = {
+    type: "link",
+    url,
+    children: isCollapsed ? [{ text: url }] : [],
+  };
+
+  if (isCollapsed) {
+    Transforms.insertNodes(editor, link);
+  } else {
+    Transforms.wrapNodes(editor, link, { split: true });
+    Transforms.collapse(editor, { edge: "end" });
+  }
+};
+
+const LinkButton = () => {
+  const editor = useSlate();
   return (
-    <Slate
-      value={[
-        { type: "paragraph", children: [{ text: "Enter some text..." }] },
-      ]}
+    <Button
+      active={isLinkActive(editor)}
+      onMouseDown={(event) => {
+        event.preventDefault();
+        const url = window.prompt("Enter the URL of the link:");
+        if (!url) return;
+        insertLink(editor, url);
+      }}
     >
-      <Editable readOnly />
-    </Slate>
+      <Icon>link</Icon>
+    </Button>
   );
 };
 
-const RichTextExample = ({
+const PostEditor = ({
   readOnly = false,
   initData = DEFAULT_VALUE,
   data,
@@ -47,7 +225,11 @@ const RichTextExample = ({
   const [value, setValue] = useState(initData);
   const renderElement = useCallback((props) => <Element {...props} />, []);
   const renderLeaf = useCallback((props) => <Leaf {...props} />, []);
-  const editor = useMemo(() => withHistory(withReact(createEditor())), []);
+  const editor = useMemo(
+    () =>
+      withHtml(withLayout(withImages(withHistory(withReact(createEditor()))))),
+    []
+  );
   const handleChange = (nextValue) => {
     if (!data) {
       setValue(nextValue);
@@ -71,9 +253,10 @@ const RichTextExample = ({
           <MarkButton format="code" icon="code" />
           <BlockButton format="heading-one" icon="looks_one" />
           <BlockButton format="heading-two" icon="looks_two" />
-          <BlockButton format="block-quote" icon="format_quote" />
           <BlockButton format="numbered-list" icon="format_list_numbered" />
           <BlockButton format="bulleted-list" icon="format_list_bulleted" />
+          <LinkButton />
+          <InsertImageButton />
         </Toolbar>
       ) : null}
       <Editable
@@ -143,7 +326,8 @@ const isMarkActive = (editor, format) => {
   return marks ? marks[format] === true : false;
 };
 
-const Element = ({ attributes, children, element }) => {
+const Element = (props) => {
+  const { attributes, children, element } = props;
   switch (element.type) {
     case "block-quote":
       return <blockquote {...attributes}>{children}</blockquote>;
@@ -157,6 +341,14 @@ const Element = ({ attributes, children, element }) => {
       return <li {...attributes}>{children}</li>;
     case "numbered-list":
       return <ol {...attributes}>{children}</ol>;
+    case "link":
+      return (
+        <a {...attributes} href={element.url}>
+          {children}
+        </a>
+      );
+    case "image":
+      return <ImageElement {...props} />;
     default:
       return <p {...attributes}>{children}</p>;
   }
@@ -212,6 +404,97 @@ const MarkButton = ({ format, icon }) => {
   );
 };
 
+const withLayout = (editor) => {
+  const { normalizeNode } = editor;
+
+  editor.normalizeNode = ([node, path]) => {
+    if (node.type == "image") {
+      var nextChildPath = path.slice();
+      nextChildPath[path.length - 1] += 1;
+      const hasNext = Node.has(editor, nextChildPath);
+      if (hasNext == false) {
+        const emptyParagraph = [
+          { type: "paragraph", children: [{ text: "" }] },
+        ];
+        Transforms.insertNodes(editor, emptyParagraph, { at: nextChildPath });
+      }
+    }
+    return normalizeNode([node, path]);
+  };
+
+  return editor;
+};
+
+const insertImage = (editor, url) => {
+  const text = { text: "" };
+  const image = { type: "image", url, children: [text] };
+  Transforms.insertNodes(editor, image);
+};
+
+const ImageElement = ({ attributes, children, element }) => {
+  const selected = useSelected();
+  const focused = useFocused();
+  return (
+    <div {...attributes}>
+      <div contentEditable={false}>
+        <img
+          src={element.url}
+          className={css`
+            display: block;
+            max-width: 100%;
+            max-height: 20em;
+            box-shadow: ${selected && focused ? "0 0 0 3px #B4D5FF" : "none"};
+          `}
+        />
+      </div>
+      {children}
+    </div>
+  );
+};
+
+const withImages = (editor) => {
+  const { insertData, isVoid } = editor;
+
+  editor.isVoid = (element) => {
+    return element.type === "image" ? true : isVoid(element);
+  };
+
+  editor.insertData = (data) => {
+    const text = data.getData("text/plain");
+    const { files } = data;
+    if (isImageUrl(text)) {
+      insertImage(editor, text);
+    } else {
+      insertData(data);
+    }
+  };
+
+  return editor;
+};
+
+const InsertImageButton = () => {
+  const editor = useEditor();
+  return (
+    <Button
+      onMouseDown={(event) => {
+        event.preventDefault();
+        const url = window.prompt("Enter the URL of the image:");
+        if (!url) return;
+        insertImage(editor, url);
+      }}
+    >
+      <Icon>image</Icon>
+    </Button>
+  );
+};
+
+const isImageUrl = (url) => {
+  if (!url) return false;
+  if (!isUrl(url)) return false;
+  const ext = new URL(url).pathname.split(".").pop();
+  return imageExtensions.includes(ext);
+};
+
 const initialValue = [
   {
     type: "paragraph",
@@ -249,4 +532,4 @@ const initialValue = [
   },
 ];
 
-export default RichTextExample;
+export default PostEditor;

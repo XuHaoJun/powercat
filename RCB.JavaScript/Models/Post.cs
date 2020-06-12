@@ -13,6 +13,7 @@ namespace RCB.JavaScript.Models
     public bool italic { get; set; }
     public bool underlined { get; set; }
     public bool code { get; set; }
+    public string url { get; set; }
     public ContentNode[] children { get; set; }
   }
 

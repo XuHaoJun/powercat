@@ -77,7 +77,7 @@ export default function DenseAppBar() {
           <Toolbar variant="dense">
             <div className={classes.grow} />
             <Link
-              to="/board"
+              to="/"
               component={IconButton}
               className={classes.menuButton}
               color="inherit"
