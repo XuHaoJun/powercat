@@ -1,5 +1,9 @@
 ﻿[![Build Status](https://trixonsystems.visualstudio.com/React%20Core%20Boilerplate/_apis/build/status/NickMaev.react-core-boilerplate?branchName=master)](https://trixonsystems.visualstudio.com/React%20Core%20Boilerplate/_build/latest?definitionId=1&branchName=master)
 
+# Powercat
+**Powercat** is a discussion board with colorful nested list style and depth control function, inspired by reddit and komica.
+[**Live Demo**](https://powercat.herokuapp.com/)
+
 # Description
 **React Core Boilerplate** is a starting point for building universal/isomorphic React web applications with ASP.NET Core 3 and server-side rendering. All works fine out of the box. It also is helpful for newbies.
 The project contains a fake authorization system. So you can change it to Identity or the other.  
