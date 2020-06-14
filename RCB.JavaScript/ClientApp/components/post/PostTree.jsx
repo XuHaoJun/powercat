@@ -57,6 +57,7 @@ const MoreMenuOri = (props) => {
         <MenuItem onClick={handleClose("edit")}>編輯(未完成)</MenuItem>
         <MenuItem onClick={handleClose("delete")}>刪除</MenuItem>
         <MenuItem onClick={handleClose("report")}>檢舉(未完成)</MenuItem>
+        <MenuItem>收起內容(未完成)</MenuItem>
       </Menu>
       <DeletePostDialog
         open={openDeleteDialog}
@@ -233,7 +234,13 @@ const PostNode = (props) => {
           {data.isDeleted ? (
             <del style={{ color: "red" }}>Content deleted</del>
           ) : (
-            <PostEditor readOnly initData={data.content || []} />
+            <div>
+              <PostEditor
+                readOnly
+                initMaxTextCountDisplay={200}
+                data={data.content || []}
+              />
+            </div>
           )}
         </CardContent>
         {isOpening ? (

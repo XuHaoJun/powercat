@@ -24,6 +24,7 @@ import { isArray, isElement, has } from "lodash";
 import { makeStyles } from "@material-ui/core/styles";
 import imageExtensions from "image-extensions";
 import { css } from "emotion";
+import _ from "lodash";
 
 import { Button, Icon, Toolbar } from "./PostEditorComponents";
 
@@ -214,16 +215,62 @@ const LinkButton = () => {
   );
 };
 
+// TODO
+// optimize this.
+const LimitTextByCount = (value, maxCount = Infinity) => {
+  if (maxCount == Infinity) {
+    return value;
+  }
+  var count = 0;
+  const node = { children: _.cloneDeep(value) };
+  var found = null;
+  for (const [n, p] of Node.texts(node)) {
+    count += n.text.length;
+    if (count >= maxCount) {
+      found = [n, p];
+      break;
+    }
+  }
+  if (found) {
+    const [n, p] = found;
+    const limitedNode = {
+      ...n,
+      text: n.text.substr(0, maxCount - (count - n.text.length)),
+    };
+    var nParent;
+    var i;
+    for (i = 0; i < p.length - 1; i++) {
+      nParent = node.children[p[i]];
+    }
+    nParent.children[p[p.length - 1]] = limitedNode;
+    nParent.children.push({ type: "__load-more", children: [{ text: "" }] });
+    node.children = node.children.slice(0, p[0] + 1);
+  }
+  return node.children;
+};
+
 const PostEditor = ({
   readOnly = false,
   initData = DEFAULT_VALUE,
   data,
   onChange,
+  initMaxTextCountDisplay = Infinity,
   editableProps = {},
 }) => {
   const classes = useStyles();
   const [value, setValue] = useState(initData);
-  const renderElement = useCallback((props) => <Element {...props} />, []);
+  const [maxTextCountDisplay, setMaxTextCountDisplay] = useState(
+    initMaxTextCountDisplay
+  );
+  const loadMoreProps = {
+    onClick: () => {
+      setMaxTextCountDisplay(Infinity);
+    },
+  };
+  const renderElement = useCallback(
+    (props) => <Element loadMoreProps={loadMoreProps} {...props} />,
+    []
+  );
   const renderLeaf = useCallback((props) => <Leaf {...props} />, []);
   const editor = useMemo(
     () =>
@@ -238,7 +285,8 @@ const PostEditor = ({
       onChange(nextValue);
     }
   };
-  const finalValue = data || value;
+  const v = data || value;
+  const finalValue = readOnly ? LimitTextByCount(v, maxTextCountDisplay) : v;
   return (
     <Slate
       editor={editor}
@@ -349,6 +397,22 @@ const Element = (props) => {
       );
     case "image":
       return <ImageElement {...props} />;
+    case "__load-more":
+      return (
+        <span
+          className={css`
+            cursor: pointer;
+            color: blue;
+            &:hover {
+              text-decoration: underline;
+            }
+          `}
+          {...props.loadMoreProps}
+          {...attributes}
+        >
+          ... 展開全文
+        </span>
+      );
     default:
       return <p {...attributes}>{children}</p>;
   }
