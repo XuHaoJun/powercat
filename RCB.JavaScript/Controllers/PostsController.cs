@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using RCB.JavaScript.Models;
+using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 
 namespace RCB.JavaScript.Controllers
@@ -201,14 +202,24 @@ namespace RCB.JavaScript.Controllers
     public async Task<ActionResult<Post>> CreatePost(PostForm postForm)
     {
       Post post = postForm.toPost();
-      string ip = HttpContext.Connection.RemoteIpAddress.ToString();
-      string anonymousId = Crypt.ComputeSha256Hash(ip).Substring(0, 8);
-      post.AnnoymousId = anonymousId;
-      _context.Posts.Add(post);
-      await _context.SaveChangesAsync();
+      var context = new ValidationContext(post, serviceProvider: null, items: null);
+      var validationResults = new List<ValidationResult>();
+      bool isValid = Validator.TryValidateObject(post, context, validationResults, true);
+      if (!isValid)
+      {
+        return BadRequest();
+      }
+      else
+      {
+        string ip = HttpContext.Connection.RemoteIpAddress.ToString();
+        string anonymousId = Crypt.ComputeSha256Hash(ip).Substring(0, 8);
+        post.AnnoymousId = anonymousId;
+        _context.Posts.Add(post);
+        await _context.SaveChangesAsync();
 
-      post.HideColumnsByAuthLevel();
-      return CreatedAtAction(nameof(GetPost), new { id = post.PostId }, post);
+        post.HideColumnsByAuthLevel();
+        return CreatedAtAction(nameof(GetPost), new { id = post.PostId }, post);
+      }
     }
 
     private bool PostExists(long id)
